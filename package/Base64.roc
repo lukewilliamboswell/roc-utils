@@ -67,11 +67,11 @@ base64_index_table = [
     '/',
 ]
 
-reverse_base64_index_map = base64_index_table |> List.map_with_index(\e, i -> (e, i)) |> Dict.from_list |> Dict.insert('=', 0)
+reverse_base64_index_map = base64_index_table |> List.map_with_index(|e, i| (e, i)) |> Dict.from_list |> Dict.insert('=', 0)
 
 ## Encodes a list of bytes into a Base64 string.
 encode : List U8 -> Str
-encode = \bytes ->
+encode = |bytes|
     length = List.len(bytes)
     padding_count =
         when length % 3 is
@@ -79,7 +79,7 @@ encode = \bytes ->
             2 -> 1
             _ -> 0
     padded_input = List.concat(bytes, List.repeat(0, padding_count))
-    encode_chunk = \state, chunk ->
+    encode_chunk = |state, chunk|
         when chunk is
             [a, b, c] ->
                 n =
@@ -91,11 +91,11 @@ encode = \bytes ->
                 six2 = Num.shift_right_zf_by(n, 12) |> Num.bitwise_and(0x3F)
                 six3 = Num.shift_right_zf_by(n, 6) |> Num.bitwise_and(0x3F)
                 six4 = n |> Num.bitwise_and(0x3F)
-                when List.map_try([six1, six2, six3, six4], \i -> List.get(base64_index_table, Num.to_u64(i))) is
+                when List.map_try([six1, six2, six3, six4], |i| List.get(base64_index_table, Num.to_u64(i))) is
                     Ok(l) -> List.concat(state, l)
                     Err(_) -> crash("bug in base64Encode")
 
-            other -> crash("expected a list of 3 elements, but got $(List.len(other) |> Num.to_str) elements")
+            other -> crash("expected a list of 3 elements, but got ${List.len(other) |> Num.to_str} elements")
 
     out_padding = List.repeat('=', padding_count)
     out_length = (length + padding_count) // 3 * 4
@@ -105,7 +105,7 @@ encode = \bytes ->
     |> List.drop_last(padding_count)
     |> List.concat(out_padding)
     |> Str.from_utf8
-    |> \r ->
+    |> |r|
         when r is
             Ok(v) -> v
             Err(_) -> crash("bug in base64Encode")
@@ -131,7 +131,7 @@ expect
     result == "AAAA"
 
 decode : Str -> Result (List U8) [InvalidBase64Char, InvalidBase64Length]
-decode = \str ->
+decode = |str|
     chars = str |> Str.to_utf8
     length = List.len(chars)
     if length % 4 != 0 then
@@ -142,12 +142,12 @@ decode = \str ->
         |> List.chunks_of(4)
         |> List.walk_try(
             List.with_capacity(out_length),
-            \state, chunk4 ->
-                padding_count = List.count_if(chunk4, \c -> c == '=')
+            |state, chunk4|
+                padding_count = List.count_if(chunk4, |c| c == '=')
                 chunk4
-                |> List.map_try(\c -> Dict.get(reverse_base64_index_map, c))
-                |> Result.map(
-                    \l ->
+                |> List.map_try(|c| Dict.get(reverse_base64_index_map, c))
+                |> Result.map_ok(
+                    |l|
                         when l is
                             [six1, six2, six3, six4] ->
                                 shifted1 = Num.shift_left_by(six1, 18)
@@ -167,7 +167,7 @@ decode = \str ->
                             _ -> crash("bug in base64Decode: should have already checked the length was a multiple of 4"),
                 ),
         )
-        |> Result.map_err(\_ -> InvalidBase64Char)
+        |> Result.map_err(|_| InvalidBase64Char)
 
 expect
     result = decode("TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu")

@@ -3,15 +3,15 @@ module [to_hex_string, from_hex_string]
 hex_chars = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
 
 byte_to_hex : U8 -> Str
-byte_to_hex = \byte ->
+byte_to_hex = |byte|
     hi = Num.shift_right_zf_by(byte, 4)
     lo = Num.bitwise_and(byte, 0xF)
     result =
         hex_chars
         |> List.get(Num.to_u64(hi))
         |> Result.try(
-            \h ->
-                List.get(hex_chars, Num.to_u64(lo)) |> Result.map(\l -> Str.concat(h, l)),
+            |h|
+                List.get(hex_chars, Num.to_u64(lo)) |> Result.map_ok(|l| Str.concat(h, l)),
         )
     when result is
         Ok(hex) -> hex
@@ -29,18 +29,18 @@ expect
 
 ## Converts a list of bytes to the equivalent hex string.
 to_hex_string : List U8 -> Str
-to_hex_string = \bytes -> bytes |> List.map(byte_to_hex) |> Str.join_with("")
+to_hex_string = |bytes| bytes |> List.map(byte_to_hex) |> Str.join_with("")
 
 expect
     result = to_hex_string([0x00, 0xFF, 0xC5])
     result == "00ffc5"
 
 hex_to_nibble : U8 -> Result U8 [InvalidHexChar]
-hex_to_nibble = \char ->
+hex_to_nibble = |char|
     when char is
-        x if x >= '0' && x <= '9' -> x - '0' |> Ok
-        x if x >= 'a' && x <= 'f' -> x - 'a' + 10 |> Ok
-        x if x >= 'A' && x <= 'F' -> x - 'A' + 10 |> Ok
+        x if x >= '0' and x <= '9' -> x - '0' |> Ok
+        x if x >= 'a' and x <= 'f' -> x - 'a' + 10 |> Ok
+        x if x >= 'A' and x <= 'F' -> x - 'A' + 10 |> Ok
         _ -> Err(InvalidHexChar)
 
 expect
@@ -68,13 +68,13 @@ expect
     result == Err(InvalidHexChar)
 
 hex_to_byte : { lo : U8, hi : U8 } -> Result U8 [InvalidHexChar]
-hex_to_byte = \{ lo, hi } ->
+hex_to_byte = |{ lo, hi }|
     hex_to_nibble(hi)
-    |> Result.map(\v -> Num.shift_left_by(v, 4))
+    |> Result.map_ok(|v| Num.shift_left_by(v, 4))
     |> Result.try(
-        \hi2 ->
+        |hi2|
             hex_to_nibble(lo)
-            |> Result.map(\lo2 -> Num.bitwise_or(hi2, lo2)),
+            |> Result.map_ok(|lo2| Num.bitwise_or(hi2, lo2)),
     )
 
 expect
@@ -95,11 +95,11 @@ expect
 
 ## Converts a string of hex characters to the equivalent list of bytes.
 from_hex_string : Str -> Result (List U8) [InvalidHexChar, InvalidHexLength]
-from_hex_string = \hex ->
+from_hex_string = |hex|
     Str.to_utf8(hex)
     |> List.chunks_of(2)
     |> List.map_try(
-        \chunk ->
+        |chunk|
             when chunk is
                 [hi, lo] -> hex_to_byte({ lo, hi })
                 _ -> Err(InvalidHexLength),

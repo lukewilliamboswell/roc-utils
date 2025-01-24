@@ -90,7 +90,7 @@ k_constants = [
 ]
 
 rotate_right_by : U32, U8 -> U32
-rotate_right_by = \value, bits ->
+rotate_right_by = |value, bits|
     right = Num.shift_right_zf_by(value, bits)
     left = Num.shift_left_by(value, (32 - bits))
     Num.bitwise_or(left, right)
@@ -105,11 +105,11 @@ expect
     result = rotate_right_by(0xAABB, 0)
     result == 0xAABB
 
-bytes_to_word = \bytes ->
+bytes_to_word = |bytes|
     (_, word) = List.walk(
         bytes,
         (32, 0),
-        \(shift_by, result), b ->
+        |(shift_by, result), b|
             s = shift_by - 8
             (s, b |> Num.to_u32 |> Num.shift_left_by(s) |> Num.bitwise_or(result)),
     )
@@ -122,7 +122,7 @@ expect
     result = bytes_to_word([0x00, 0xFF, 0x00, 0x80])
     result == 0x00FF0080
 
-word_to_bytes = \word -> [
+word_to_bytes = |word| [
     Num.shift_right_zf_by(word, 24) |> Num.to_u8,
     Num.shift_right_zf_by(word, 16) |> Num.to_u8,
     Num.shift_right_zf_by(word, 8) |> Num.to_u8,
@@ -130,8 +130,8 @@ word_to_bytes = \word -> [
 ]
 
 pre_process : List U8 -> List U8
-pre_process = \message ->
-    big_endian64 = \i -> [
+pre_process = |message|
+    big_endian64 = |i| [
         Num.shift_right_zf_by(i, 56) |> Num.to_u8,
         Num.shift_right_zf_by(i, 48) |> Num.to_u8,
         Num.shift_right_zf_by(i, 40) |> Num.to_u8,
@@ -150,19 +150,19 @@ pre_process = \message ->
     length_bytes = big_endian64(bit_length)
     message |> List.append(0x80) |> List.concat(padding) |> List.concat(length_bytes)
 
-unsafe_get = \array, i ->
+unsafe_get = |array, i|
     when List.get(array, i) is
         Ok(x) -> x
         Err(_) -> crash("Bug: array length not correct")
 
-process = \padded_message ->
+process = |padded_message|
     chunks = List.chunks_of(padded_message, 64)
-    process_chunk = \current_hash, chunk ->
+    process_chunk = |current_hash, chunk|
         schedule_array =
             List.chunks_of(chunk, 4)
             |> List.walk(
                 List.with_capacity(64),
-                \state, word_bytes ->
+                |state, word_bytes|
                     word = bytes_to_word(word_bytes)
                     List.append(state, word),
             )
@@ -170,7 +170,7 @@ process = \padded_message ->
             List.range({ start: At(16), end: Before(64) })
             |> List.walk(
                 schedule_array,
-                \state, i ->
+                |state, i|
                     s0 =
                         n = unsafe_get(state, (i - 15))
                         (rotate_right_by(n, 7)) |> Num.bitwise_xor(rotate_right_by(n, 18)) |> Num.bitwise_xor(Num.shift_right_zf_by(n, 3))
@@ -180,11 +180,11 @@ process = \padded_message ->
                     w = unsafe_get(state, (i - 16)) |> Num.add_wrap(s0) |> Num.add_wrap(unsafe_get(state, (i - 7))) |> Num.add_wrap(s1)
                     List.append(state, w),
             )
-        with_constants = List.map2(filled, k_constants, \w, k -> (w, k))
+        with_constants = List.map2(filled, k_constants, |w, k| (w, k))
         new_hash = List.walk(
             with_constants,
             current_hash,
-            \{ h0: a, h1: b, h2: c, h3: d, h4: e, h5: f, h6: g, h7: h }, (w, k) ->
+            |{ h0: a, h1: b, h2: c, h3: d, h4: e, h5: f, h6: g, h7: h }, (w, k)|
                 s1 = (rotate_right_by(e, 6)) |> Num.bitwise_xor(rotate_right_by(e, 11)) |> Num.bitwise_xor(rotate_right_by(e, 25))
                 ch = Num.bitwise_xor(Num.bitwise_and(e, f), Num.bitwise_and(Num.bitwise_not(e), g))
                 temp1 = h |> Num.add_wrap(s1) |> Num.add_wrap(ch) |> Num.add_wrap(k) |> Num.add_wrap(w)
@@ -216,7 +216,7 @@ process = \padded_message ->
     [hw.h0, hw.h1, hw.h2, hw.h3, hw.h4, hw.h5, hw.h6, hw.h7] |> List.join_map(word_to_bytes)
 
 sha256 : List U8 -> List U8
-sha256 = \message -> message |> pre_process |> process
+sha256 = |message| message |> pre_process |> process
 
 expect
     result = sha256([])

@@ -7,11 +7,11 @@ block_size = 64
 outer_pad = List.repeat(0x5c, block_size)
 inner_pad = List.repeat(0x36, block_size)
 
-pad_by = \key, n -> List.concat(key, List.repeat(0x00, n))
+pad_by = |key, n| List.concat(key, List.repeat(0x00, n))
 
 compute_block_sized_key : List U8 -> List U8
-compute_block_sized_key = \key ->
-    pad_if_needed = \bytes ->
+compute_block_sized_key = |key|
+    pad_if_needed = |bytes|
         pad_count = block_size - List.len(bytes)
         if pad_count > 0 then
             pad_by(bytes, pad_count)
@@ -28,7 +28,7 @@ compute_block_sized_key = \key ->
 ##
 ##     "this is my message" |> Str.toUtf8 |> hmacSha256 myKey
 hmac_sha256 : List U8, List U8 -> List U8
-hmac_sha256 = \message, key ->
+hmac_sha256 = |message, key|
     block_sized_key = compute_block_sized_key(key)
     outer_key = List.map2(block_sized_key, outer_pad, Num.bitwise_xor)
     inner_key = List.map2(block_sized_key, inner_pad, Num.bitwise_xor)
